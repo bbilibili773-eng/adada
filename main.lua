@@ -1,10 +1,10 @@
 --[[
-    NACHO HUB PRO (ULTRA EDITION) - GERÇEK SUNUCU ENTEGRELİ
+    NACHO HUB PRO (ULTRA EDITION) - SERVER HOPPER DÜZELTİLDİ
     Destek: PC & Mobil (Telefon)
-    Özellikler: Auto Steal, Instant V2/V3, Chilli Finder (Gerçek Sunucular), Event Farm, Admin Tools
+    Özellikler: Auto Steal, Instant V2/V3, Chilli Finder (Garantili Geçiş), Event Farm, Admin Tools
 ]]
 
--- 1. RAYFIELD UI KÜTÜPHANESİ YÜKLEME
+-- 1. RAYFIELD UI KÜTÜPHANESİ
 local RayfieldSuccess, Rayfield = pcall(function()
     return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 end)
@@ -13,7 +13,7 @@ if not RayfieldSuccess or not Rayfield then
     Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
 end
 
--- 2. ANA PENCERE TANIMI
+-- 2. ANA PENCERE
 local Window = Rayfield:CreateWindow({
     Name = "Nacho Hub Pro",
     LoadingTitle = "Nacho Hub Pro v4.4.0",
@@ -24,7 +24,7 @@ local Window = Rayfield:CreateWindow({
     Theme = "Amethyst"
 })
 
--- 3. GLOBAL DURUM VE AYARLAR
+-- 3. GLOBAL DURUM
 getgenv().AutoSteal = false
 getgenv().StealMethod = "Instant V2 (Tween)"
 getgenv().SelectedZone = "All Zones"
@@ -48,33 +48,41 @@ local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 local CurrentJobId = game.JobId
 
--- Uzak Olaylar
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StealRemote = ReplicatedStorage:FindFirstChild("StealEgg") 
                  or ReplicatedStorage:FindFirstChild("ClaimEgg") 
                  or ReplicatedStorage:FindFirstChild("RemoteEvent")
 
--- GERÇEK SUNUCULARI TARAMA FONKSİYONU
+-- KESİNTİSİZ VE GARANTİLİ SUNUCU GEÇİŞ FONKSİYONU
 local function TeleportToRealServer()
-    Rayfield:Notify({Title = "Sunucu Aranıyor", Content = "Aktif, boş bir sunucu taranıyor...", Duration = 3})
+    Rayfield:Notify({Title = "Sunucu Aranıyor", Content = "En uygun boş sunucu seçiliyor...", Duration = 2.5})
     
-    local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Desc&limit=25", PlaceId)
+    -- sortOrder=Asc ile en boş sunucuları listeler
+    local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
     local s, res = pcall(function() return game:HttpGet(url) end)
     
     if s and res then
-        local data = HttpService:JSONDecode(res)
-        if data and data.data then
+        local decodeSuccess, data = pcall(function() return HttpService:JSONDecode(res) end)
+        if decodeSuccess and data and data.data then
+            local available = {}
             for _, srv in ipairs(data.data) do
                 if srv.id ~= CurrentJobId and srv.playing < srv.maxPlayers then
-                    Rayfield:Notify({Title = "Bağlanılıyor", Content = "Sunucuya geçiş yapılıyor...", Duration = 3})
-                    TeleportService:TeleportToPlaceInstance(PlaceId, srv.id, LocalPlayer)
-                    return
+                    table.insert(available, srv.id)
                 end
+            end
+            
+            if #available > 0 then
+                local chosenJobId = available[math.random(1, #available)]
+                Rayfield:Notify({Title = "Işınlanılıyor", Content = "Sunucuya bağlanılıyor...", Duration = 3})
+                TeleportService:TeleportToPlaceInstance(PlaceId, chosenJobId, LocalPlayer)
+                return
             end
         end
     end
     
-    Rayfield:Notify({Title = "Hata", Content = "Uygun boş sunucu bulunamadı, tekrar deneyin.", Duration = 3})
+    -- Eğer API'den liste dönmezse yedek garanti sistem devreye girer
+    Rayfield:Notify({Title = "Otomatik Aktarma", Content = "Başka bir sunucuya yönlendiriliyorsunuz...", Duration = 3})
+    TeleportService:Teleport(PlaceId, LocalPlayer)
 end
 
 --========================================================================
@@ -164,7 +172,7 @@ StealTab:CreateDropdown({
 })
 
 --========================================================================
--- SEKME 2: CHILLI FINDER (GERÇEK ROBLOX SUNUCULARI)
+-- SEKME 2: CHILLI FINDER (GARANTİLİ GEÇİŞ)
 --========================================================================
 local FinderTab = Window:CreateTab("Chilli Finder", 4483362458)
 FinderTab:CreateSection("Canlı Büyük Yumurta Arama")
@@ -215,7 +223,7 @@ FinderTab:CreateDropdown({
     end
 })
 
-FinderTab:CreateSection("Aktif Sunuculara Katıl (Hata 771 Düzeltildi)")
+FinderTab:CreateSection("Aktif Sunuculara Katıl (Garantili)")
 
 FinderTab:CreateButton({
     Name = "⚡ Stag (Rainbow) [$18.17B/s] - Sunucuya Katıl",
@@ -389,7 +397,7 @@ end)
 
 Rayfield:Notify({
     Title = "Nacho Hub Pro",
-    Content = "Gerçek sunucu tarayıcısı hazır!",
+    Content = "Sunucu yönlendirme motoru güncellendi!",
     Duration = 3.5,
     Image = 4483362458
 })

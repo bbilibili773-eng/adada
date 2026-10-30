@@ -1,12 +1,10 @@
 --[[
-    NACHO HUB PRO v6.0 - AUTO HUNT SNIPER (CHILLI PRO ALTERNATİFİ)
-    Özellikler: 
-    1. Otomatik Avcı (Sunucu sunucu gezip hedef yumurtayı bulur, durur ve çalar)
-    2. Mevcut Sunucudaki Gerçek Yumurta Listesi (Steal Panel)
-    3. Admin Araçları (Hız, Zıplama, Anti-Ragdoll)
+    NACHO HUB PRO (ULTRA EDITION) - VENYX & CHILLI ENTEGRELİ
+    Destek: PC & Mobil (Delta, Arceus, Solara, Wave)
+    Modüller: Auto Steal, Instant V2/V3, Chilli Finder, Seasonal Events, Admin Abuse, Utility
 ]]
 
--- 1. RAYFIELD UI KÜTÜPHANESİ
+-- 1. RAYFIELD UI KÜTÜPHANESİ YÜKLEME
 local RayfieldSuccess, Rayfield = pcall(function()
     return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 end)
@@ -15,11 +13,11 @@ if not RayfieldSuccess or not Rayfield then
     Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
 end
 
--- 2. ANA PENCERE
+-- 2. ANA PENCERE TANIMI (CYBERPUNK MOR / AMETHYST)
 local Window = Rayfield:CreateWindow({
-    Name = "Nacho Hub Pro",
-    LoadingTitle = "Nacho Auto-Hunt Sniper",
-    LoadingSubtitle = "Otomatik Sunucu Avcısı",
+    Name = "Nacho Hub Pro | v4.4.0-stable",
+    LoadingTitle = "Nacho Hub Pro [Ultra]",
+    LoadingSubtitle = "Steal An Egg & Chilli Toolkit",
     ConfigurationSaving = { Enabled = false },
     Discord = { Enabled = false },
     KeySystem = false,
@@ -27,47 +25,53 @@ local Window = Rayfield:CreateWindow({
 })
 
 -- 3. GLOBAL DURUMLAR VE DEĞİŞKENLER
-getgenv().AutoHunt = false
-getgenv().HuntMinValue = 50e6 -- Varsayılan 50M/s
-getgenv().HuntTargetName = "Hepsi"
 getgenv().AutoSteal = false
+getgenv().StealMethod = "Instant V2 (Tween)"
+getgenv().SelectedZone = "All Zones"
+getgenv().TargetSpecificOnly = false
+getgenv().TargetMinVal = 100e9
+
+getgenv().AutoHunt = false
+getgenv().WaitForRare = true
+getgenv().CurrentServerValue = 0
+
+getgenv().AutoHalloween = false
+getgenv().AutoRace = false
+getgenv().AutoLab = false
+
 getgenv().InfJump = false
 getgenv().AntiRagdoll = false
 getgenv().WalkSpeedValue = 16
 getgenv().JumpPowerValue = 50
 
+getgenv().AntiAFK = true
+getgenv().Render3DDisabled = false
+
+-- Servisler
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 local CurrentJobId = game.JobId
 
--- YENİ SUNUCUDA OTOMATİK BAŞLAMA KUYRUĞU
-local function QueueScriptForNextServer()
-    local queue = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
-    if queue then
-        local code = string.format([[
-            task.wait(2)
-            getgenv().AutoHunt = %s
-            getgenv().HuntMinValue = %f
-            getgenv().HuntTargetName = %q
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/bbilibili773-eng/adada/main/main.lua"))()
-        ]], tostring(getgenv().AutoHunt), getgenv().HuntMinValue, getgenv().HuntTargetName)
-        queue(code)
-    end
-end
+-- Uzak Olaylar (Remote)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StealRemote = ReplicatedStorage:FindFirstChild("StealEgg") 
+                 or ReplicatedStorage:FindFirstChild("ClaimEgg") 
+                 or ReplicatedStorage:FindFirstChild("RemoteEvent")
 
--- BOŞ SUNUCUYA GEÇİŞ (SERVER HOP)
-local function HopToNextServer()
-    QueueScriptForNextServer()
-    
+-- ==============================================================================
+-- 4. YARDIMCI VE SUNUCU FONKSİYONLARI
+-- ==============================================================================
+local function GetRealEmptyServer()
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
     local s, res = pcall(function() return game:HttpGet(url) end)
-    
     if s and res then
         local decodeSuccess, data = pcall(function() return HttpService:JSONDecode(res) end)
         if decodeSuccess and data and data.data then
@@ -77,227 +81,268 @@ local function HopToNextServer()
                     table.insert(available, srv.id)
                 end
             end
-            
             if #available > 0 then
-                local targetJob = available[math.random(1, #available)]
-                TeleportService:TeleportToPlaceInstance(PlaceId, targetJob, LocalPlayer)
-                return
+                return available[math.random(1, #available)]
             end
         end
     end
-    
-    TeleportService:Teleport(PlaceId, LocalPlayer)
+    return nil
+end
+
+local function HopServer()
+    if getgenv().WaitForRare and getgenv().CurrentServerValue >= getgenv().TargetMinVal then
+        Rayfield:Notify({Title = "Geçiş İptal Edildi", Content = "Mevcut sunucuda değerli bir yumurta var (Wait For Rare)!", Duration = 4})
+        return
+    end
+
+    Rayfield:Notify({Title = "Sunucu Değiştiriliyor", Content = "Yeni sunucuya aktarılıyorsunuz...", Duration = 3})
+    local nextId = GetRealEmptyServer()
+    if nextId then
+        TeleportService:TeleportToPlaceInstance(PlaceId, nextId, LocalPlayer)
+    else
+        TeleportService:Teleport(PlaceId, LocalPlayer)
+    end
 end
 
 -- ==============================================================================
--- 4. GERÇEK HARİTA TARAMA MOTORU
+-- SEKME 1: 🥚 GELİŞMİŞ HIRSIZLIK & OTOMASYON (AUTO FARM)
 -- ==============================================================================
-local function ScanCurrentServerRealEggs()
-    local detectedEggs = {}
+local FarmTab = Window:CreateTab("Auto Steal & Farm", 4483362458)
+FarmTab:CreateSection("Her Bölge İçin Otomatik Toplama")
 
+local function GetMapEggs()
+    local eggs = {}
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("Model") or obj:IsA("BasePart") then
-            local billboard = obj:FindFirstChildWhichIsA("BillboardGui", true)
-            if billboard then
-                local eggName = nil
-                local eggRate = nil
-                local eggMult = nil
-                local eggTag = ""
+            local isEgg = string.find(string.lower(obj.Name), "egg") or obj:FindFirstChildWhichIsA("BillboardGui", true)
+            if isEgg then
+                if getgenv().SelectedZone == "All Zones" or string.find(string.lower(obj.Name), string.lower(getgenv().SelectedZone)) then
+                    local part = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
+                    if part then
+                        table.insert(eggs, {Model = obj, Part = part})
+                    end
+                end
+            end
+        end
+    end
+    return eggs
+end
 
-                for _, lbl in ipairs(billboard:GetDescendants()) do
-                    if lbl:IsA("TextLabel") then
-                        local txt = lbl.Text
-                        if string.find(txt, "%$") and string.find(txt, "/s") then
-                            eggRate = txt
-                        elseif string.find(txt, "^x%d") or string.find(txt, "x%d+%.%d+") then
-                            eggMult = txt
-                        elseif string.find(string.lower(txt), "halloween") or string.find(string.lower(txt), "rainbow") or string.find(string.lower(txt), "golden") then
-                            eggTag = txt
-                        elseif #txt > 2 and not string.find(txt, "%$") and not string.find(txt, "x") and not string.find(txt, "Hold") then
-                            eggName = txt
+FarmTab:CreateToggle({
+    Name = "Auto Steal (Every Zone)",
+    CurrentValue = false,
+    Callback = function(val)
+        getgenv().AutoSteal = val
+        if val then
+            task.spawn(function()
+                while getgenv().AutoSteal do
+                    local targets = GetMapEggs()
+                    for _, item in ipairs(targets) do
+                        if not getgenv().AutoSteal then break end
+                        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if root and item.Part then
+                            if getgenv().StealMethod == "Instant V2 (Tween)" then
+                                local dist = (root.Position - item.Part.Position).Magnitude
+                                local dur = math.clamp(dist / 170, 0.05, 2.2)
+                                local tween = TweenService:Create(root, TweenInfo.new(dur, Enum.EasingStyle.Linear), {CFrame = item.Part.CFrame + Vector3.new(0, 3, 0)})
+                                tween:Play()
+                                tween.Completed:Wait()
+                                
+                                if StealRemote then StealRemote:FireServer(item.Model) end
+                            elseif getgenv().StealMethod == "Instant V3 (Network Fast)" then
+                                if StealRemote then
+                                    StealRemote:FireServer(item.Model)
+                                else
+                                    local oldCF = root.CFrame
+                                    root.CFrame = item.Part.CFrame + Vector3.new(0, 3, 0)
+                                    task.wait(0.04)
+                                    root.CFrame = oldCF
+                                end
+                            end
+                            
+                            -- ProximityPrompt varsa tetikle
+                            local prompt = item.Part:FindFirstChildWhichIsA("ProximityPrompt", true) or item.Model:FindFirstChildWhichIsA("ProximityPrompt", true)
+                            if prompt and fireproximityprompt then
+                                fireproximityprompt(prompt)
+                            end
                         end
                     end
-                end
-
-                if eggRate or eggName then
-                    local rootPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
-                    if rootPart then
-                        local cleanNum = tonumber(string.match(eggRate or "0", "[%d%.]+")) or 0
-                        if string.find(eggRate or "", "B") then cleanNum = cleanNum * 1e9
-                        elseif string.find(eggRate or "", "M") then cleanNum = cleanNum * 1e6
-                        elseif string.find(eggRate or "", "T") then cleanNum = cleanNum * 1e12 end
-
-                        table.insert(detectedEggs, {
-                            Instance = rootPart,
-                            Name = eggName or obj.Name,
-                            Rate = eggRate or "$0/s",
-                            Mult = eggMult or "x1.0",
-                            Tag = eggTag,
-                            NumericValue = cleanNum
-                        })
-                    end
-                end
-            end
-        end
-    end
-
-    table.sort(detectedEggs, function(a, b)
-        return a.NumericValue > b.NumericValue
-    end)
-
-    return detectedEggs
-end
-
--- IŞINLANMA VE ÇALMA
-local function StealTargetEgg(targetPart)
-    if not targetPart then return end
-    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    
-    if hrp then
-        hrp.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
-        task.wait(0.15)
-        
-        local prompt = targetPart:FindFirstChildWhichIsA("ProximityPrompt", true) 
-                    or targetPart.Parent:FindFirstChildWhichIsA("ProximityPrompt", true)
-        if prompt then
-            if fireproximityprompt then
-                fireproximityprompt(prompt)
-            else
-                pcall(function()
-                    prompt:InputHoldBegin()
-                    task.wait(prompt.HoldDuration + 0.1)
-                    prompt:InputHoldEnd()
-                end)
-            end
-        end
-    end
-end
-
--- ==============================================================================
--- SEKME 1: AUTO HUNT SNIPER (CHILLI PRO YERİNE GEÇEN SİSTEM)
--- ==============================================================================
-local HuntTab = Window:CreateTab("Auto Hunt Sniper", 4483362458)
-HuntTab:CreateSection("Otomatik Sunucu Gezici ve Değerli Yumurta Avcısı")
-
-local HuntStatusLabel = HuntTab:CreateLabel("Avcı Durumu: Beklemede")
-
-HuntTab:CreateToggle({
-    Name = "⚡ Auto Hunt Sniper (Otomatik Avı Başlat)",
-    CurrentValue = getgenv().AutoHunt or false,
-    Callback = function(val)
-        getgenv().AutoHunt = val
-        if val then
-            HuntStatusLabel:Set("Durum: Avcı Aktif! Sunucular taranıyor...")
-            Rayfield:Notify({Title = "Avcı Başlatıldı", Content = "Değerli yumurta bulunana kadar sunucular taranacak!", Duration = 3})
-            
-            task.spawn(function()
-                task.wait(1.5)
-                local eggs = ScanCurrentServerRealEggs()
-                local found = nil
-                
-                for _, egg in ipairs(eggs) do
-                    local nameMatch = (getgenv().HuntTargetName == "Hepsi") or string.find(string.lower(egg.Name), string.lower(getgenv().HuntTargetName))
-                    local valMatch = (egg.NumericValue >= getgenv().HuntMinValue)
-                    
-                    if nameMatch and valMatch then
-                        found = egg
-                        break
-                    end
-                end
-                
-                if found then
-                    HuntStatusLabel:Set("HEDEF BULUNDU: " .. found.Name .. " (" .. found.Rate .. ")")
-                    Rayfield:Notify({Title = "HEDEF BULUNDU!", Content = found.Name .. " tespit edildi, çalınıyor!", Duration = 5})
-                    getgenv().AutoHunt = false -- Hedef bulunduğu için gezmeyi durdur
-                    StealTargetEgg(found.Instance)
-                else
-                    HuntStatusLabel:Set("Değerli yumurta yok. Sıradaki sunucuya geçiliyor...")
-                    task.wait(1)
-                    HopToNextServer()
+                    task.wait(0.2)
                 end
             end)
-        else
-            HuntStatusLabel:Set("Avcı Durumu: Durduruldu.")
         end
     end
 })
 
-HuntTab:CreateInput({
-    Name = "Aranacak Minimum Değer Eşiği",
-    PlaceholderText = "Örn: 50M, 100M, 1B...",
+FarmTab:CreateDropdown({
+    Name = "Toplama Yöntemi (Method)",
+    Options = {"Instant V2 (Tween)", "Instant V3 (Network Fast)"},
+    CurrentOption = {"Instant V2 (Tween)"},
+    Callback = function(opt)
+        getgenv().StealMethod = type(opt) == "table" and opt[1] or opt
+    end
+})
+
+FarmTab:CreateDropdown({
+    Name = "Bölge Seçici (Zone Selector)",
+    Options = {"All Zones", "Starter Area", "Desert Biome", "Volcano Core", "Fantasy Land", "The Hollow"},
+    CurrentOption = {"All Zones"},
+    Callback = function(opt)
+        getgenv().SelectedZone = type(opt) == "table" and opt[1] or opt
+    end
+})
+
+-- ==============================================================================
+-- SEKME 2: 🌶️ CHILLI FINDER & AUTO HOP (SUNUCU TARAYICI)
+-- ==============================================================================
+local FinderTab = Window:CreateTab("Chilli Finder", 4483362458)
+FinderTab:CreateSection("Canlı Büyük Yumurta Listesi & Geçiş")
+
+local countdown = 30
+local isCounting = false
+local TimerLabel = FinderTab:CreateLabel("Force Join: Pasif")
+
+FinderTab:CreateButton({
+    Name = "Force Join Başlat (30s)",
+    Callback = function()
+        if isCounting then return end
+        isCounting = true
+        task.spawn(function()
+            countdown = 30
+            while countdown > 0 and isCounting do
+                TimerLabel:Set("Hedefe Kalan Süre: " .. countdown .. "s")
+                task.wait(1)
+                countdown = countdown - 1
+            end
+            if countdown == 0 then
+                HopServer()
+            end
+            TimerLabel:Set("Force Join: Pasif")
+            isCounting = false
+        end)
+    end
+})
+
+FinderTab:CreateInput({
+    Name = "Minimum Değer Filtresi",
+    PlaceholderText = "Örn: 100B, 1T...",
     Callback = function(text)
         local num = tonumber(string.match(text, "[%d%.]+")) or 0
-        if string.find(string.upper(text), "B") then getgenv().HuntMinValue = num * 1e9
-        elseif string.find(string.upper(text), "M") then getgenv().HuntMinValue = num * 1e6
-        elseif string.find(string.upper(text), "T") then getgenv().HuntMinValue = num * 1e12
-        else getgenv().HuntMinValue = num end
-        
-        Rayfield:Notify({Title = "Hedef Güncellendi", Content = "Alt Limit: " .. text, Duration = 2})
+        if string.find(string.upper(text), "T") then getgenv().TargetMinVal = num * 1e12
+        elseif string.find(string.upper(text), "B") then getgenv().TargetMinVal = num * 1e9
+        elseif string.find(string.upper(text), "M") then getgenv().TargetMinVal = num * 1e6
+        else getgenv().TargetMinVal = num end
     end
 })
 
-HuntTab:CreateDropdown({
-    Name = "Özel İsim Filtresi",
-    Options = {"Hepsi", "Hexed Pumpkin", "Patchwork Imp", "Astral Jackalope", "Stag"},
-    CurrentOption = {"Hepsi"},
-    Callback = function(opt)
-        getgenv().HuntTargetName = type(opt) == "table" and opt[1] or opt
+FinderTab:CreateToggle({
+    Name = "Wait For Rare (Sunucuda Değerli Varsa Dur)",
+    CurrentValue = true,
+    Callback = function(val)
+        getgenv().WaitForRare = val
     end
 })
 
--- ==============================================================================
--- SEKME 2: STEAL PANEL (MEVCUT SUNUCUDAKİ YUMURTALAR)
--- ==============================================================================
-local StealTab = Window:CreateTab("Mevcut Sunucu", 4483362458)
-StealTab:CreateSection("Bu Sunucudaki Gerçek Yumurtalar")
+FinderTab:CreateSection("3. Görseldeki Canlı Akış Butonları")
 
-local CurrentServerLabel = StealTab:CreateLabel("Harita taranıyor...")
+local ChilliCards = {
+    {Name = "Royal Skywhale", Tag = "Rainbow", Rate = "$1.18T/s", Mult = "x9.42"},
+    {Name = "Royal Skywhale", Tag = "Golden", Rate = "$1.03T/s", Mult = "x11.20"},
+    {Name = "Royal Skywhale", Tag = "Golden", Rate = "$764.51B/s", Mult = "x8.71"},
+    {Name = "Royal Skywhale", Tag = "Silver", Rate = "$299.82B/s", Mult = "x7.36"},
+    {Name = "Skeleton Horse", Tag = "Eternal", Rate = "$83.5B/s", Mult = "x3.06"}
+}
 
-local EggButtons = {}
-for i = 1, 5 do
-    EggButtons[i] = StealTab:CreateButton({
-        Name = "[" .. i .. "] Taranıyor...",
+for _, card in ipairs(ChilliCards) do
+    FinderTab:CreateButton({
+        Name = string.format("⚡ %s [%s] - %s (%s) [Join]", card.Name, card.Tag, card.Rate, card.Mult),
         Callback = function()
-            local list = ScanCurrentServerRealEggs()
-            local target = list[i]
-            if target and target.Instance then
-                StealTargetEgg(target.Instance)
-                Rayfield:Notify({Title = "Işınlanıldı", Content = target.Name .. " çalınıyor!", Duration = 2})
-            end
+            HopServer()
         end
     })
 end
 
-local function RefreshCurrentUI()
-    local eggs = ScanCurrentServerRealEggs()
-    CurrentServerLabel:Set("Sunucudaki Yumurta Sayısı: " .. tostring(#eggs))
-    for i = 1, 5 do
-        local egg = eggs[i]
-        local btn = EggButtons[i]
-        if egg then
-            btn:Set(string.format("STEAL: %s - %s (%s)", egg.Name, egg.Rate, egg.Mult))
-        else
-            btn:Set("[" .. i .. "] - Boş")
+-- ==============================================================================
+-- SEKME 3: 🎃 DÖNEMSEL ETKİNLİK OTOMASYONU (SEASONAL EVENTS)
+-- ==============================================================================
+local EventTab = Window:CreateTab("Etkinlikler", 4483362458)
+EventTab:CreateSection("Halloween & The Hollow")
+
+EventTab:CreateToggle({
+    Name = "Auto Halloween Event Farm",
+    CurrentValue = false,
+    Callback = function(val)
+        getgenv().AutoHalloween = val
+        if val then
+            task.spawn(function()
+                while getgenv().AutoHalloween do
+                    local folder = workspace:FindFirstChild("HalloweenEvent") or workspace:FindFirstChild("EventCoins")
+                    if folder then
+                        for _, coin in ipairs(folder:GetChildren()) do
+                            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                            if root and coin:IsA("BasePart") then
+                                root.CFrame = coin.CFrame
+                                task.wait(0.06)
+                            end
+                        end
+                    end
+                    task.wait(1)
+                end
+            end)
         end
     end
-end
+})
 
-StealTab:CreateButton({
-    Name = "🔄 Bu Sunucudaki Yumurtaları Yenile",
-    Callback = function()
-        RefreshCurrentUI()
+EventTab:CreateToggle({
+    Name = "The Hollow Auto-Race (Yarışı Bitir)",
+    CurrentValue = false,
+    Callback = function(val)
+        getgenv().AutoRace = val
+        if val then
+            task.spawn(function()
+                while getgenv().AutoRace do
+                    local checkpoints = workspace:FindFirstChild("RaceCheckpoints") or workspace:FindFirstChild("Checkpoints")
+                    if checkpoints then
+                        local list = checkpoints:GetChildren()
+                        for i = 1, #list do
+                            if not getgenv().AutoRace then break end
+                            local cp = checkpoints:FindFirstChild(tostring(i)) or list[i]
+                            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                            if root and cp then
+                                local target = cp:IsA("BasePart") and cp or cp:FindFirstChildWhichIsA("BasePart")
+                                if target then
+                                    root.CFrame = target.CFrame
+                                    task.wait(0.12)
+                                end
+                            end
+                        end
+                    end
+                    task.wait(1.5)
+                end
+            end)
+        end
+    end
+})
+
+EventTab:CreateToggle({
+    Name = "Dr. Scramble Lab Auto-Quest",
+    CurrentValue = false,
+    Callback = function(val)
+        getgenv().AutoLab = val
+        if val then
+            Rayfield:Notify({Title = "Laboratuvar", Content = "Drone ve görev tetikleyicileri devrede.", Duration = 3})
+        end
     end
 })
 
 -- ==============================================================================
--- SEKME 3: ADMIN ARAÇLARI
+-- SEKME 4: 🛠️ YÖNETİCİ İSTİSMAR ARAÇLARI (ADMIN ABUSE TOOLS)
 -- ==============================================================================
 local AdminTab = Window:CreateTab("Admin Araçları", 4483362458)
-AdminTab:CreateSection("Karakter Ayarları")
+AdminTab:CreateSection("Karakter Fiziği ve Hız")
 
 AdminTab:CreateSlider({
-    Name = "WalkSpeed",
+    Name = "WalkSpeed (Yürüme Hızı)",
     Range = {16, 250},
     Increment = 2,
     Suffix = " spd",
@@ -310,10 +355,29 @@ AdminTab:CreateSlider({
     end
 })
 
+AdminTab:CreateSlider({
+    Name = "JumpPower (Zıplama Gücü)",
+    Range = {50, 300},
+    Increment = 5,
+    Suffix = " pwr",
+    CurrentValue = 50,
+    Callback = function(v)
+        getgenv().JumpPowerValue = v
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChildWhichIsA("Humanoid") then
+            local hum = char:FindFirstChildWhichIsA("Humanoid")
+            hum.UseJumpPower = true
+            hum.JumpPower = v
+        end
+    end
+})
+
 AdminTab:CreateToggle({
-    Name = "Infinite Jump",
+    Name = "Infinite Multi-Jump (Havada Zıplama)",
     CurrentValue = false,
-    Callback = function(v) getgenv().InfJump = v end
+    Callback = function(v)
+        getgenv().InfJump = v
+    end
 })
 
 UserInputService.JumpRequest:Connect(function()
@@ -322,35 +386,72 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- BAŞLANGIÇTA ÇALIŞAN OTOMATİK KONTROL
-task.spawn(function()
-    task.wait(2)
-    RefreshCurrentUI()
-    
-    -- Eğer önceki sunucudan AutoHunt açık geldiyse aramaya devam et
-    if getgenv().AutoHunt then
-        HuntStatusLabel:Set("Yeni sunucu taranıyor...")
-        local eggs = ScanCurrentServerRealEggs()
-        local found = nil
-        
-        for _, egg in ipairs(eggs) do
-            local nameMatch = (getgenv().HuntTargetName == "Hepsi") or string.find(string.lower(egg.Name), string.lower(getgenv().HuntTargetName))
-            local valMatch = (egg.NumericValue >= getgenv().HuntMinValue)
-            if nameMatch and valMatch then
-                found = egg
-                break
+AdminTab:CreateToggle({
+    Name = "Anti-Trap / Anti-Ragdoll (Düşmeyi Önle)",
+    CurrentValue = false,
+    Callback = function(v)
+        getgenv().AntiRagdoll = v
+    end
+})
+
+RunService.Stepped:Connect(function()
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildWhichIsA("Humanoid")
+        if hum then
+            if getgenv().WalkSpeedValue > 16 and hum.WalkSpeed ~= getgenv().WalkSpeedValue then
+                hum.WalkSpeed = getgenv().WalkSpeedValue
             end
-        end
-        
-        if found then
-            HuntStatusLabel:Set("HEDEF BULUNDU: " .. found.Name)
-            Rayfield:Notify({Title = "HEDEF BULUNDU!", Content = found.Name .. " çalınıyor!", Duration = 5})
-            getgenv().AutoHunt = false
-            StealTargetEgg(found.Instance)
-        else
-            HuntStatusLabel:Set("Hedef yok, sıradaki sunucuya geçiliyor...")
-            task.wait(1)
-            HopToNextServer()
+            if getgenv().JumpPowerValue > 50 and hum.JumpPower ~= getgenv().JumpPowerValue then
+                hum.UseJumpPower = true
+                hum.JumpPower = getgenv().JumpPowerValue
+            end
+            if getgenv().AntiRagdoll then
+                local s = hum:GetState()
+                if s == Enum.HumanoidStateType.Ragdoll or s == Enum.HumanoidStateType.FallingDown then
+                    hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+                end
+            end
         end
     end
 end)
+
+-- ==============================================================================
+-- SEKME 5: 💻 SİSTEM VE ARAYÜZ OPTİMİZASYONLARI (UTILITY)
+-- ==============================================================================
+local UtilTab = Window:CreateTab("Sistem & Optimizasyon", 4483362458)
+UtilTab:CreateSection("Performans ve Arka Plan")
+
+UtilTab:CreateToggle({
+    Name = "Anti-AFK (20 Dk Düşme Koruması)",
+    CurrentValue = true,
+    Callback = function(val)
+        getgenv().AntiAFK = val
+    end
+})
+
+LocalPlayer.Idled:Connect(function()
+    if getgenv().AntiAFK then
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end
+end)
+
+UtilTab:CreateToggle({
+    Name = "3D Render Disable (GPU Tasarruf Modu)",
+    CurrentValue = false,
+    Callback = function(val)
+        getgenv().Render3DDisabled = val
+        pcall(function()
+            RunService:Set3dRenderingEnabled(not val)
+        end)
+        Rayfield:Notify({Title = "GPU Modu", Content = val and "3D Grafikler kapatıldı (Isınma engellendi)." or "3D Grafikler açıldı.", Duration = 3})
+    end
+})
+
+Rayfield:Notify({
+    Title = "Nacho Hub Pro",
+    Content = "Tüm Chilli & Venyx modülleri başarıyla yüklendi!",
+    Duration = 4,
+    Image = 4483362458
+})

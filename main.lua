@@ -1,11 +1,3 @@
-İstediğin tüm özellikleri (Auto Steal, Every Zone, Instant Steal V2/V3, Chilli Finder, Halloween & The Hollow, Admin Abuse Araçları ve Mobil/PC uyumluluğu) tek bir çatı altında toplayan, eksiksiz ve optimize edilmiş Luau scripti aşağıdadır.
-
-Bu sürümde:
-* **Mobil ve PC Desteği:** Rayfield arayüzü dokunmatik ekranlara ve PC çözünürlüklerine uyumlu hale getirilmiştir.
-* **Admin Araçları (Sekme 4):** WalkSpeed, JumpPower, Infinite Jump ve Anti-Ragdoll durum kontrolleri eklenmiştir.
-* **Bölge Filtreleme:** Seçilen alana göre yumurta filtreleme mekanizması tanımlanmıştır.
-
-```lua
 --[[
     NACHO HUB PRO (ULTRA EDITION) - MULTI-TOOL
     Destek: PC & Mobil (Telefon)
@@ -73,7 +65,6 @@ local function GetTargetEggs()
     if workspaceEggs then
         for _, egg in ipairs(workspaceEggs:GetChildren()) do
             if egg:IsA("Model") or egg:IsA("BasePart") then
-                -- Bölge filtresi kontrolü
                 if getgenv().SelectedZone == "All Zones" or string.find(string.lower(egg.Name), string.lower(getgenv().SelectedZone)) then
                     table.insert(eggs, egg)
                 end
@@ -353,7 +344,6 @@ RunService.Stepped:Connect(function()
     if char then
         local hum = char:FindFirstChildWhichIsA("Humanoid")
         if hum then
-            -- Hız ve zıplama değerlerini koru
             if getgenv().WalkSpeedValue > 16 and hum.WalkSpeed ~= getgenv().WalkSpeedValue then
                 hum.WalkSpeed = getgenv().WalkSpeedValue
             end
@@ -362,7 +352,6 @@ RunService.Stepped:Connect(function()
                 hum.JumpPower = getgenv().JumpPowerValue
             end
             
-            -- Anti-Ragdoll durumu
             if getgenv().AntiRagdoll then
                 local state = hum:GetState()
                 if state == Enum.HumanoidStateType.Ragdoll or state == Enum.HumanoidStateType.FallingDown then
@@ -379,4 +368,3 @@ Rayfield:Notify({
     Duration = 3.5,
     Image = 4483362458
 })
-```

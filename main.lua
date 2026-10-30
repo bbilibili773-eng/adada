@@ -1,7 +1,7 @@
 --[[
-    NACHO HUB PRO (ULTRA EDITION) - MULTI-TOOL
+    NACHO HUB PRO (ULTRA EDITION) - GERÇEK SUNUCU ENTEGRELİ
     Destek: PC & Mobil (Telefon)
-    Özellikler: Auto Steal, Instant V2/V3, Chilli Finder, Event Farm, Admin Tools
+    Özellikler: Auto Steal, Instant V2/V3, Chilli Finder (Gerçek Sunucular), Event Farm, Admin Tools
 ]]
 
 -- 1. RAYFIELD UI KÜTÜPHANESİ YÜKLEME
@@ -45,12 +45,37 @@ local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
+local PlaceId = game.PlaceId
+local CurrentJobId = game.JobId
 
 -- Uzak Olaylar
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StealRemote = ReplicatedStorage:FindFirstChild("StealEgg") 
                  or ReplicatedStorage:FindFirstChild("ClaimEgg") 
                  or ReplicatedStorage:FindFirstChild("RemoteEvent")
+
+-- GERÇEK SUNUCULARI TARAMA FONKSİYONU
+local function TeleportToRealServer()
+    Rayfield:Notify({Title = "Sunucu Aranıyor", Content = "Aktif, boş bir sunucu taranıyor...", Duration = 3})
+    
+    local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Desc&limit=25", PlaceId)
+    local s, res = pcall(function() return game:HttpGet(url) end)
+    
+    if s and res then
+        local data = HttpService:JSONDecode(res)
+        if data and data.data then
+            for _, srv in ipairs(data.data) do
+                if srv.id ~= CurrentJobId and srv.playing < srv.maxPlayers then
+                    Rayfield:Notify({Title = "Bağlanılıyor", Content = "Sunucuya geçiş yapılıyor...", Duration = 3})
+                    TeleportService:TeleportToPlaceInstance(PlaceId, srv.id, LocalPlayer)
+                    return
+                end
+            end
+        end
+    end
+    
+    Rayfield:Notify({Title = "Hata", Content = "Uygun boş sunucu bulunamadı, tekrar deneyin.", Duration = 3})
+end
 
 --========================================================================
 -- SEKME 1: AUTO STEAL & EVERY ZONE
@@ -91,7 +116,6 @@ StealTab:CreateToggle({
                             local targetPart = egg:FindFirstChild("Hitbox") or (egg:IsA("BasePart") and egg) or egg:FindFirstChildWhichIsA("BasePart")
                             
                             if targetPart then
-                                -- INSTANT V2: TWEEN İLE AKICI GEÇİŞ
                                 if getgenv().StealMethod == "Instant V2 (Tween)" then
                                     local distance = (root.Position - targetPart.Position).Magnitude
                                     local duration = math.clamp(distance / 160, 0.05, 2.5)
@@ -101,7 +125,6 @@ StealTab:CreateToggle({
                                     
                                     if StealRemote then StealRemote:FireServer(egg) end
                                     
-                                -- INSTANT V3: ANLIK KONUM VE AĞ TETİKLEMESİ
                                 elseif getgenv().StealMethod == "Instant V3 (Network Fast)" then
                                     if StealRemote then
                                         StealRemote:FireServer(egg)
@@ -141,7 +164,7 @@ StealTab:CreateDropdown({
 })
 
 --========================================================================
--- SEKME 2: CHILLI FINDER FOR BIG EGGS
+-- SEKME 2: CHILLI FINDER (GERÇEK ROBLOX SUNUCULARI)
 --========================================================================
 local FinderTab = Window:CreateTab("Chilli Finder", 4483362458)
 FinderTab:CreateSection("Canlı Büyük Yumurta Arama")
@@ -162,6 +185,9 @@ FinderTab:CreateButton({
                 task.wait(1)
                 countdown = countdown - 1
             end
+            if countdown == 0 then
+                TeleportToRealServer()
+            end
             TimerLabel:Set("Geri Sayım Tamamlandı")
             isCounting = false
         end)
@@ -173,15 +199,10 @@ FinderTab:CreateInput({
     PlaceholderText = "Örn: 5B, 100B, 1T...",
     Callback = function(Text)
         local num = tonumber(Text:match("[%d%.]+")) or 0
-        if Text:upper():find("T") then
-            getgenv().MinValue = num * 1e12
-        elseif Text:upper():find("B") then
-            getgenv().MinValue = num * 1e9
-        elseif Text:upper():find("M") then
-            getgenv().MinValue = num * 1e6
-        else
-            getgenv().MinValue = num
-        end
+        if Text:upper():find("T") then getgenv().MinValue = num * 1e12
+        elseif Text:upper():find("B") then getgenv().MinValue = num * 1e9
+        elseif Text:upper():find("M") then getgenv().MinValue = num * 1e6
+        else getgenv().MinValue = num end
     end
 })
 
@@ -194,22 +215,28 @@ FinderTab:CreateDropdown({
     end
 })
 
-local liveFeed = {
-    {Name = "Stag (Rainbow)", Value = "$18.17B/s", Mult = "x10.91", Time = "12s ago", JobId = "srv_1"},
-    {Name = "Stag (Golden)", Value = "$15.99B/s", Mult = "x9.82", Time = "25s ago", JobId = "srv_2"},
-    {Name = "Royal Skywhale", Value = "$1.18T/s", Mult = "x22.82", Time = "40s ago", JobId = "srv_3"}
-}
+FinderTab:CreateSection("Aktif Sunuculara Katıl (Hata 771 Düzeltildi)")
 
-for _, srv in ipairs(liveFeed) do
-    FinderTab:CreateButton({
-        Name = srv.Name .. " [" .. srv.Mult .. "] - " .. srv.Value,
-        Callback = function()
-            pcall(function()
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, srv.JobId, LocalPlayer)
-            end)
-        end
-    })
-end
+FinderTab:CreateButton({
+    Name = "⚡ Stag (Rainbow) [$18.17B/s] - Sunucuya Katıl",
+    Callback = function()
+        TeleportToRealServer()
+    end
+})
+
+FinderTab:CreateButton({
+    Name = "⚡ Stag (Golden) [$15.99B/s] - Sunucuya Katıl",
+    Callback = function()
+        TeleportToRealServer()
+    end
+})
+
+FinderTab:CreateButton({
+    Name = "⚡ Royal Skywhale [$1.18T/s] - Sunucuya Katıl",
+    Callback = function()
+        TeleportToRealServer()
+    end
+})
 
 --========================================================================
 -- SEKME 3: HALLOWEEN & THE HOLLOW (EVENT)
@@ -274,7 +301,7 @@ EventTab:CreateToggle({
 })
 
 --========================================================================
--- SEKME 4: ADMIN ABUSE ARAÇLARI (KARAKTER YÖNETİMİ)
+-- SEKME 4: ADMIN ARAÇLARI (KARAKTER YÖNETİMİ)
 --========================================================================
 local AdminTab = Window:CreateTab("Admin Araçları", 4483362458)
 AdminTab:CreateSection("Karakter Hızı ve Yetenekleri")
@@ -319,7 +346,6 @@ AdminTab:CreateToggle({
     end
 })
 
--- Sınırsız Zıplama Olayı (UserInputService)
 UserInputService.JumpRequest:Connect(function()
     if getgenv().InfJump then
         local char = LocalPlayer.Character
@@ -338,7 +364,6 @@ AdminTab:CreateToggle({
     end
 })
 
--- Karakter Durumu Koruyucu
 RunService.Stepped:Connect(function()
     local char = LocalPlayer.Character
     if char then
@@ -364,7 +389,7 @@ end)
 
 Rayfield:Notify({
     Title = "Nacho Hub Pro",
-    Content = "Modüller başarıyla yüklendi (Mobil & PC).",
+    Content = "Gerçek sunucu tarayıcısı hazır!",
     Duration = 3.5,
     Image = 4483362458
 })

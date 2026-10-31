@@ -1,53 +1,8 @@
---[[
-    NACHO HUB PRO (ULTRA EDITION) - VENYX & CHILLI ENTEGRELİ
-    Destek: PC & Mobil (Delta, Arceus, Solara, Wave)
-    Modüller: Auto Steal, Instant V2/V3, Chilli Finder, Seasonal Events, Admin Abuse, Utility
-]]
+-- ==============================================================================
+-- PROJE: NACHO CHILLI FINDER (ÖZEL SCREEN-GUI SÜRÜMÜ - SIFIR RAYFIELD)
+-- DESTEK: Mobil (Telefon) & PC | %100 Akıcı ve Bağımsız
+-- ==============================================================================
 
--- 1. RAYFIELD UI KÜTÜPHANESİ YÜKLEME
-local RayfieldSuccess, Rayfield = pcall(function()
-    return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-end)
-
-if not RayfieldSuccess or not Rayfield then
-    Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
-end
-
--- 2. ANA PENCERE TANIMI (CYBERPUNK MOR / AMETHYST)
-local Window = Rayfield:CreateWindow({
-    Name = "Nacho Hub Pro | v4.4.0-stable",
-    LoadingTitle = "Nacho Hub Pro [Ultra]",
-    LoadingSubtitle = "Steal An Egg & Chilli Toolkit",
-    ConfigurationSaving = { Enabled = false },
-    Discord = { Enabled = false },
-    KeySystem = false,
-    Theme = "Amethyst"
-})
-
--- 3. GLOBAL DURUMLAR VE DEĞİŞKENLER
-getgenv().AutoSteal = false
-getgenv().StealMethod = "Instant V2 (Tween)"
-getgenv().SelectedZone = "All Zones"
-getgenv().TargetSpecificOnly = false
-getgenv().TargetMinVal = 100e9
-
-getgenv().AutoHunt = false
-getgenv().WaitForRare = true
-getgenv().CurrentServerValue = 0
-
-getgenv().AutoHalloween = false
-getgenv().AutoRace = false
-getgenv().AutoLab = false
-
-getgenv().InfJump = false
-getgenv().AntiRagdoll = false
-getgenv().WalkSpeedValue = 16
-getgenv().JumpPowerValue = 50
-
-getgenv().AntiAFK = true
-getgenv().Render3DDisabled = false
-
--- Servisler
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local TeleportService = game:GetService("TeleportService")
@@ -57,24 +12,256 @@ local RunService = game:GetService("RunService")
 local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local PlaceId = game.PlaceId
 local CurrentJobId = game.JobId
 
--- Uzak Olaylar (Remote)
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local StealRemote = ReplicatedStorage:FindFirstChild("StealEgg") 
-                 or ReplicatedStorage:FindFirstChild("ClaimEgg") 
-                 or ReplicatedStorage:FindFirstChild("RemoteEvent")
+-- Eski arayüz varsa temizle
+if game:GetService("CoreGui"):FindFirstChild("NachoChilliStandalone") then
+    game:GetService("CoreGui").NachoChilliStandalone:Destroy()
+end
+
+-- ANA SCREEN-GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NachoChilliStandalone"
+ScreenGui.ResetOnSpawn = false
+pcall(function() ScreenGui.Parent = game:GetService("CoreGui") end)
+if not ScreenGui.Parent then ScreenGui.Parent = PlayerGui end
+
+-- AYARLAR VE DURUMLAR
+local Settings = {
+    AutoHunt = false,
+    MinHuntValue = 50e6, -- 50M/s alt limit
+    AutoSteal = false,
+    AntiAFK = true,
+    SpeedBoost = false
+}
+
+-- ANTI-AFK SİSTEMİ
+LocalPlayer.Idled:Connect(function()
+    if Settings.AntiAFK then
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end
+end)
 
 -- ==============================================================================
--- 4. YARDIMCI VE SUNUCU FONKSİYONLARI
+-- 1. SOL MENÜ "FINDER" BUTONU
 -- ==============================================================================
-local function GetRealEmptyServer()
+local LeftSidebarBtn = Instance.new("TextButton")
+LeftSidebarBtn.Name = "FinderSidebarBtn"
+LeftSidebarBtn.Size = UDim2.new(0, 105, 0, 42)
+LeftSidebarBtn.Position = UDim2.new(0, 10, 0.38, 0)
+LeftSidebarBtn.BackgroundColor3 = Color3.fromRGB(245, 175, 25)
+LeftSidebarBtn.BorderSizePixel = 3
+LeftSidebarBtn.BorderColor3 = Color3.fromRGB(0, 0, 0)
+LeftSidebarBtn.Font = Enum.Font.FredokaOne
+LeftSidebarBtn.Text = "🦌 Finder"
+LeftSidebarBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+LeftSidebarBtn.TextSize = 19
+LeftSidebarBtn.Parent = ScreenGui
+
+local UICornerSidebar = Instance.new("UICorner")
+UICornerSidebar.CornerRadius = UDim.new(0, 8)
+UICornerSidebar.Parent = LeftSidebarBtn
+
+-- ==============================================================================
+-- 2. ANA CHILLI FINDER PANELİ (FOTOĞRAFTAKİ BİREBİR TASARIM)
+-- ==============================================================================
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 360, 0, 490)
+MainFrame.Position = UDim2.new(0.65, 0, 0.20, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(35, 36, 42)
+MainFrame.BorderSizePixel = 4
+MainFrame.BorderColor3 = Color3.fromRGB(15, 15, 18)
+MainFrame.Active = true
+MainFrame.Draggable = true -- Hem mobilde hem PC'de sürüklenebilir!
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = MainFrame
+
+-- BAŞLIK ÇUBUĞU (Turuncu Chilli Başlığı)
+local Header = Instance.new("Frame")
+Header.Name = "Header"
+Header.Size = UDim2.new(1, 0, 0, 50)
+Header.BackgroundColor3 = Color3.fromRGB(240, 90, 30)
+Header.BorderSizePixel = 0
+Header.Parent = MainFrame
+
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 8)
+HeaderCorner.Parent = Header
+
+local HeaderTitle = Instance.new("TextLabel")
+HeaderTitle.Size = UDim2.new(0, 190, 1, 0)
+HeaderTitle.Position = UDim2.new(0, 14, 0, 0)
+HeaderTitle.BackgroundTransparency = 1
+HeaderTitle.Font = Enum.Font.FredokaOne
+HeaderTitle.Text = "Chilli Finder"
+HeaderTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+HeaderTitle.TextSize = 25
+HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+HeaderTitle.Parent = Header
+
+-- AUTO OFF / ON BUTONU
+local AutoHuntBtn = Instance.new("TextButton")
+AutoHuntBtn.Size = UDim2.new(0, 95, 0, 32)
+AutoHuntBtn.Position = UDim2.new(1, -105, 0, 9)
+AutoHuntBtn.BackgroundColor3 = Color3.fromRGB(50, 52, 60)
+AutoHuntBtn.BorderSizePixel = 2
+AutoHuntBtn.BorderColor3 = Color3.fromRGB(0, 0, 0)
+AutoHuntBtn.Font = Enum.Font.FredokaOne
+AutoHuntBtn.Text = "AUTO OFF"
+AutoHuntBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+AutoHuntBtn.TextSize = 13
+AutoHuntBtn.Parent = Header
+
+local AutoHuntCorner = Instance.new("UICorner")
+AutoHuntCorner.CornerRadius = UDim.new(0, 6)
+AutoHuntCorner.Parent = AutoHuntBtn
+
+-- 4 ADET HAP BUTON (FORCE JOIN, MIN VALUE, RARITY, HOP)
+local PillContainer = Instance.new("Frame")
+PillContainer.Size = UDim2.new(1, -20, 0, 44)
+PillContainer.Position = UDim2.new(0, 10, 0, 58)
+PillContainer.BackgroundTransparency = 1
+PillContainer.Parent = MainFrame
+
+local function CreatePill(text, sub, col, posX)
+    local p = Instance.new("TextButton")
+    p.Size = UDim2.new(0, 80, 1, 0)
+    p.Position = UDim2.new(0, posX, 0, 0)
+    p.BackgroundColor3 = col
+    p.BorderSizePixel = 2
+    p.BorderColor3 = Color3.fromRGB(0, 0, 0)
+    p.Font = Enum.Font.FredokaOne
+    p.Text = text .. "\n" .. sub
+    p.TextColor3 = Color3.fromRGB(0, 0, 0)
+    p.TextSize = 11
+    p.Parent = PillContainer
+    
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, 6)
+    c.Parent = p
+    return p
+end
+
+local ForcePill = CreatePill("FORCE JOIN", "30s", Color3.fromRGB(130, 245, 130), 0)
+local MinPill = CreatePill("MIN VALUE", "50M/s", Color3.fromRGB(120, 215, 255), 87)
+local RarityPill = CreatePill("RARITY", "Divine", Color3.fromRGB(160, 210, 255), 174)
+local HopPill = CreatePill("SERVER", "Hop", Color3.fromRGB(255, 210, 75), 260)
+
+-- LİSTE BAŞLIĞI
+local SubHeader = Instance.new("TextLabel")
+SubHeader.Size = UDim2.new(1, -20, 0, 22)
+SubHeader.Position = UDim2.new(0, 10, 0, 108)
+SubHeader.BackgroundTransparency = 1
+SubHeader.Font = Enum.Font.FredokaOne
+SubHeader.Text = "Canlı Harita Yumurtaları | Tap STEAL"
+SubHeader.TextColor3 = Color3.fromRGB(230, 230, 230)
+SubHeader.TextSize = 13
+SubHeader.Parent = MainFrame
+
+-- YUMURTA KARTLARI LİSTESİ (SCROLL FRAME)
+local CardList = Instance.new("ScrollingFrame")
+CardList.Size = UDim2.new(1, -20, 0, 310)
+CardList.Position = UDim2.new(0, 10, 0, 134)
+CardList.BackgroundTransparency = 1
+CardList.BorderSizePixel = 0
+CardList.ScrollBarThickness = 5
+CardList.Parent = MainFrame
+
+local UIList = Instance.new("UIListLayout")
+UIList.Padding = UDim.new(0, 8)
+UIList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList.Parent = CardList
+
+-- ==============================================================================
+-- 3. GERÇEK HARİTA TARAMA VE ÇALMA MOTORU
+-- ==============================================================================
+local function ScanCurrentServerRealEggs()
+    local detected = {}
+    
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") or obj:IsA("BasePart") then
+            local billboard = obj:FindFirstChildWhichIsA("BillboardGui", true)
+            if billboard then
+                local eggName, eggRate, eggMult, eggTag = nil, nil, nil, ""
+                
+                for _, lbl in ipairs(billboard:GetDescendants()) do
+                    if lbl:IsA("TextLabel") then
+                        local txt = lbl.Text
+                        if string.find(txt, "%$") and string.find(txt, "/s") then
+                            eggRate = txt
+                        elseif string.find(txt, "^x%d") or string.find(txt, "x%d+%.%d+") then
+                            eggMult = txt
+                        elseif string.find(string.lower(txt), "halloween") or string.find(string.lower(txt), "rainbow") or string.find(string.lower(txt), "golden") or string.find(string.lower(txt), "divine") then
+                            eggTag = txt
+                        elseif #txt > 2 and not string.find(txt, "%$") and not string.find(txt, "x") and not string.find(txt, "Hold") then
+                            eggName = txt
+                        end
+                    end
+                end
+                
+                if eggRate or eggName then
+                    local root = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
+                    if root then
+                        local cleanNum = tonumber(string.match(eggRate or "0", "[%d%.]+")) or 0
+                        if string.find(eggRate or "", "B") then cleanNum = cleanNum * 1e9
+                        elseif string.find(eggRate or "", "M") then cleanNum = cleanNum * 1e6
+                        elseif string.find(eggRate or "", "T") then cleanNum = cleanNum * 1e12 end
+                        
+                        table.insert(detected, {
+                            Instance = root,
+                            Name = eggName or obj.Name,
+                            Rate = eggRate or "$0/s",
+                            Mult = eggMult or "x1.0",
+                            Tag = eggTag,
+                            Numeric = cleanNum
+                        })
+                    end
+                end
+            end
+        end
+    end
+    
+    table.sort(detected, function(a, b) return a.Numeric > b.Numeric end)
+    return detected
+end
+
+-- IŞINLANIP ÇALMA
+local function StealEgg(part)
+    if not part then return end
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = part.CFrame + Vector3.new(0, 3, 0)
+        task.wait(0.12)
+        local prompt = part:FindFirstChildWhichIsA("ProximityPrompt", true) or part.Parent:FindFirstChildWhichIsA("ProximityPrompt", true)
+        if prompt and fireproximityprompt then
+            fireproximityprompt(prompt)
+        end
+    end
+end
+
+-- SUNUCU DEĞİŞTİRME (SERVER HOP)
+local function HopServer()
+    local queue = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
+    if queue then
+        queue([[
+            task.wait(2)
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/bbilibili773-eng/adada/main/main.lua"))()
+        ]])
+    end
+    
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
     local s, res = pcall(function() return game:HttpGet(url) end)
     if s and res then
-        local decodeSuccess, data = pcall(function() return HttpService:JSONDecode(res) end)
-        if decodeSuccess and data and data.data then
+        local decSuccess, data = pcall(function() return HttpService:JSONDecode(res) end)
+        if decSuccess and data and data.data then
             local available = {}
             for _, srv in ipairs(data.data) do
                 if srv.id ~= CurrentJobId and srv.playing < srv.maxPlayers then
@@ -82,376 +269,162 @@ local function GetRealEmptyServer()
                 end
             end
             if #available > 0 then
-                return available[math.random(1, #available)]
+                TeleportService:TeleportToPlaceInstance(PlaceId, available[math.random(1, #available)], LocalPlayer)
+                return
             end
         end
     end
-    return nil
+    TeleportService:Teleport(PlaceId, LocalPlayer)
 end
 
-local function HopServer()
-    if getgenv().WaitForRare and getgenv().CurrentServerValue >= getgenv().TargetMinVal then
-        Rayfield:Notify({Title = "Geçiş İptal Edildi", Content = "Mevcut sunucuda değerli bir yumurta var (Wait For Rare)!", Duration = 4})
+-- KARTLARI ÇİZEN FONKSİYON
+local function RenderCards()
+    for _, child in ipairs(CardList:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+    
+    local realEggs = ScanCurrentServerRealEggs()
+    
+    if #realEggs == 0 then
+        local emptyLbl = Instance.new("TextLabel")
+        emptyLbl.Size = UDim2.new(1, 0, 0, 45)
+        emptyLbl.BackgroundTransparency = 1
+        emptyLbl.Font = Enum.Font.FredokaOne
+        emptyLbl.Text = "Haritada aktif yumurta taranıyor..."
+        emptyLbl.TextColor3 = Color3.fromRGB(180, 180, 180)
+        emptyLbl.TextSize = 14
+        emptyLbl.Parent = CardList
         return
     end
+    
+    for i = 1, math.min(6, #realEggs) do
+        local data = realEggs[i]
+        
+        local Card = Instance.new("Frame")
+        Card.Size = UDim2.new(1, 0, 0, 52)
+        Card.BackgroundColor3 = Color3.fromRGB(48, 50, 56)
+        Card.BorderSizePixel = 2
+        Card.BorderColor3 = Color3.fromRGB(20, 20, 25)
+        Card.Parent = CardList
+        
+        local CardCorner = Instance.new("UICorner")
+        CardCorner.CornerRadius = UDim.new(0, 6)
+        CardCorner.Parent = Card
+        
+        local IconBox = Instance.new("TextLabel")
+        IconBox.Size = UDim2.new(0, 42, 1, 0)
+        IconBox.BackgroundColor3 = Color3.fromRGB(65, 68, 76)
+        IconBox.Text = "🎃"
+        IconBox.TextSize = 22
+        IconBox.Parent = Card
+        
+        if data.Tag ~= "" then
+            local TagBadge = Instance.new("TextLabel")
+            TagBadge.Size = UDim2.new(0, 42, 0, 13)
+            TagBadge.Position = UDim2.new(0, 0, 1, -13)
+            TagBadge.BackgroundColor3 = Color3.fromRGB(240, 140, 20)
+            TagBadge.Font = Enum.Font.FredokaOne
+            TagBadge.Text = data.Tag
+            TagBadge.TextColor3 = Color3.fromRGB(255, 255, 255)
+            TagBadge.TextSize = 8
+            TagBadge.Parent = Card
+        end
+        
+        local TitleLbl = Instance.new("TextLabel")
+        TitleLbl.Size = UDim2.new(0, 190, 0, 20)
+        TitleLbl.Position = UDim2.new(0, 48, 0, 5)
+        TitleLbl.BackgroundTransparency = 1
+        TitleLbl.Font = Enum.Font.FredokaOne
+        TitleLbl.Text = data.Name
+        TitleLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+        TitleLbl.TextSize = 15
+        TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+        TitleLbl.Parent = Card
+        
+        local StatsLbl = Instance.new("TextLabel")
+        StatsLbl.Size = UDim2.new(0, 190, 0, 18)
+        StatsLbl.Position = UDim2.new(0, 48, 0, 26)
+        StatsLbl.BackgroundTransparency = 1
+        StatsLbl.Font = Enum.Font.FredokaOne
+        StatsLbl.Text = string.format("<font color='#32CD32'>%s</font>  <font color='#FFA500'>%s</font>", data.Rate, data.Mult)
+        StatsLbl.RichText = true
+        StatsLbl.TextSize = 12
+        StatsLbl.TextXAlignment = Enum.TextXAlignment.Left
+        StatsLbl.Parent = Card
+        
+        -- YEŞİL STEAL BUTONU (3. FOTOĞRAFTAKİ GİBİ)
+        local StealBtn = Instance.new("TextButton")
+        StealBtn.Size = UDim2.new(0, 75, 0, 36)
+        StealBtn.Position = UDim2.new(1, -82, 0, 8)
+        StealBtn.BackgroundColor3 = Color3.fromRGB(50, 205, 50)
+        StealBtn.BorderSizePixel = 2
+        StealBtn.BorderColor3 = Color3.fromRGB(0, 0, 0)
+        StealBtn.Font = Enum.Font.FredokaOne
+        StealBtn.Text = "STEAL"
+        StealBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+        StealBtn.TextSize = 16
+        StealBtn.Parent = Card
+        
+        local StealCorner = Instance.new("UICorner")
+        StealCorner.CornerRadius = UDim.new(0, 6)
+        StealCorner.Parent = StealBtn
+        
+        StealBtn.MouseButton1Click:Connect(function()
+            StealEgg(data.Instance)
+        end)
+    end
+end
 
-    Rayfield:Notify({Title = "Sunucu Değiştiriliyor", Content = "Yeni sunucuya aktarılıyorsunuz...", Duration = 3})
-    local nextId = GetRealEmptyServer()
-    if nextId then
-        TeleportService:TeleportToPlaceInstance(PlaceId, nextId, LocalPlayer)
+-- ==============================================================================
+-- 4. ETKİLEŞİMLER VE DÖNGÜLER
+-- ==============================================================================
+-- Sol menü aç/kapa
+LeftSidebarBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+-- Server Hop Butonu
+HopPill.MouseButton1Click:Connect(function()
+    HopServer()
+end)
+
+-- Auto Hunt Aç/Kapa
+AutoHuntBtn.MouseButton1Click:Connect(function()
+    Settings.AutoHunt = not Settings.AutoHunt
+    if Settings.AutoHunt then
+        AutoHuntBtn.Text = "AUTO ON"
+        AutoHuntBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 40)
     else
-        TeleportService:Teleport(PlaceId, LocalPlayer)
+        AutoHuntBtn.Text = "AUTO OFF"
+        AutoHuntBtn.BackgroundColor3 = Color3.fromRGB(50, 52, 60)
     end
-end
+end)
 
--- ==============================================================================
--- SEKME 1: 🥚 GELİŞMİŞ HIRSIZLIK & OTOMASYON (AUTO FARM)
--- ==============================================================================
-local FarmTab = Window:CreateTab("Auto Steal & Farm", 4483362458)
-FarmTab:CreateSection("Her Bölge İçin Otomatik Toplama")
+-- İlk çizim
+RenderCards()
 
-local function GetMapEggs()
-    local eggs = {}
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") or obj:IsA("BasePart") then
-            local isEgg = string.find(string.lower(obj.Name), "egg") or obj:FindFirstChildWhichIsA("BillboardGui", true)
-            if isEgg then
-                if getgenv().SelectedZone == "All Zones" or string.find(string.lower(obj.Name), string.lower(getgenv().SelectedZone)) then
-                    local part = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
-                    if part then
-                        table.insert(eggs, {Model = obj, Part = part})
-                    end
-                end
-            end
-        end
-    end
-    return eggs
-end
-
-FarmTab:CreateToggle({
-    Name = "Auto Steal (Every Zone)",
-    CurrentValue = false,
-    Callback = function(val)
-        getgenv().AutoSteal = val
-        if val then
-            task.spawn(function()
-                while getgenv().AutoSteal do
-                    local targets = GetMapEggs()
-                    for _, item in ipairs(targets) do
-                        if not getgenv().AutoSteal then break end
-                        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                        if root and item.Part then
-                            if getgenv().StealMethod == "Instant V2 (Tween)" then
-                                local dist = (root.Position - item.Part.Position).Magnitude
-                                local dur = math.clamp(dist / 170, 0.05, 2.2)
-                                local tween = TweenService:Create(root, TweenInfo.new(dur, Enum.EasingStyle.Linear), {CFrame = item.Part.CFrame + Vector3.new(0, 3, 0)})
-                                tween:Play()
-                                tween.Completed:Wait()
-                                
-                                if StealRemote then StealRemote:FireServer(item.Model) end
-                            elseif getgenv().StealMethod == "Instant V3 (Network Fast)" then
-                                if StealRemote then
-                                    StealRemote:FireServer(item.Model)
-                                else
-                                    local oldCF = root.CFrame
-                                    root.CFrame = item.Part.CFrame + Vector3.new(0, 3, 0)
-                                    task.wait(0.04)
-                                    root.CFrame = oldCF
-                                end
-                            end
-                            
-                            -- ProximityPrompt varsa tetikle
-                            local prompt = item.Part:FindFirstChildWhichIsA("ProximityPrompt", true) or item.Model:FindFirstChildWhichIsA("ProximityPrompt", true)
-                            if prompt and fireproximityprompt then
-                                fireproximityprompt(prompt)
-                            end
-                        end
-                    end
-                    task.wait(0.2)
-                end
-            end)
-        end
-    end
-})
-
-FarmTab:CreateDropdown({
-    Name = "Toplama Yöntemi (Method)",
-    Options = {"Instant V2 (Tween)", "Instant V3 (Network Fast)"},
-    CurrentOption = {"Instant V2 (Tween)"},
-    Callback = function(opt)
-        getgenv().StealMethod = type(opt) == "table" and opt[1] or opt
-    end
-})
-
-FarmTab:CreateDropdown({
-    Name = "Bölge Seçici (Zone Selector)",
-    Options = {"All Zones", "Starter Area", "Desert Biome", "Volcano Core", "Fantasy Land", "The Hollow"},
-    CurrentOption = {"All Zones"},
-    Callback = function(opt)
-        getgenv().SelectedZone = type(opt) == "table" and opt[1] or opt
-    end
-})
-
--- ==============================================================================
--- SEKME 2: 🌶️ CHILLI FINDER & AUTO HOP (SUNUCU TARAYICI)
--- ==============================================================================
-local FinderTab = Window:CreateTab("Chilli Finder", 4483362458)
-FinderTab:CreateSection("Canlı Büyük Yumurta Listesi & Geçiş")
-
-local countdown = 30
-local isCounting = false
-local TimerLabel = FinderTab:CreateLabel("Force Join: Pasif")
-
-FinderTab:CreateButton({
-    Name = "Force Join Başlat (30s)",
-    Callback = function()
-        if isCounting then return end
-        isCounting = true
-        task.spawn(function()
-            countdown = 30
-            while countdown > 0 and isCounting do
-                TimerLabel:Set("Hedefe Kalan Süre: " .. countdown .. "s")
-                task.wait(1)
-                countdown = countdown - 1
-            end
-            if countdown == 0 then
+-- Canlı Yenileme ve Otomatik Avcı Döngüsü
+task.spawn(function()
+    while true do
+        task.wait(4)
+        RenderCards()
+        
+        -- Eğer Auto Hunt açıksa ve sunucudaki en değerli yumurta limitin altındaysa başka sunucuya geç
+        if Settings.AutoHunt then
+            local currentEggs = ScanCurrentServerRealEggs()
+            local bestEgg = currentEggs[1]
+            
+            if bestEgg and bestEgg.Numeric >= Settings.MinHuntValue then
+                -- Değerli yumurta bulundu! Dur ve çal!
+                StealEgg(bestEgg.Instance)
+                Settings.AutoHunt = false
+                AutoHuntBtn.Text = "BULUNDU!"
+                AutoHuntBtn.BackgroundColor3 = Color3.fromRGB(240, 160, 20)
+            else
+                -- Bu sunucuda yok, sıradakine geç!
                 HopServer()
-            end
-            TimerLabel:Set("Force Join: Pasif")
-            isCounting = false
-        end)
-    end
-})
-
-FinderTab:CreateInput({
-    Name = "Minimum Değer Filtresi",
-    PlaceholderText = "Örn: 100B, 1T...",
-    Callback = function(text)
-        local num = tonumber(string.match(text, "[%d%.]+")) or 0
-        if string.find(string.upper(text), "T") then getgenv().TargetMinVal = num * 1e12
-        elseif string.find(string.upper(text), "B") then getgenv().TargetMinVal = num * 1e9
-        elseif string.find(string.upper(text), "M") then getgenv().TargetMinVal = num * 1e6
-        else getgenv().TargetMinVal = num end
-    end
-})
-
-FinderTab:CreateToggle({
-    Name = "Wait For Rare (Sunucuda Değerli Varsa Dur)",
-    CurrentValue = true,
-    Callback = function(val)
-        getgenv().WaitForRare = val
-    end
-})
-
-FinderTab:CreateSection("3. Görseldeki Canlı Akış Butonları")
-
-local ChilliCards = {
-    {Name = "Royal Skywhale", Tag = "Rainbow", Rate = "$1.18T/s", Mult = "x9.42"},
-    {Name = "Royal Skywhale", Tag = "Golden", Rate = "$1.03T/s", Mult = "x11.20"},
-    {Name = "Royal Skywhale", Tag = "Golden", Rate = "$764.51B/s", Mult = "x8.71"},
-    {Name = "Royal Skywhale", Tag = "Silver", Rate = "$299.82B/s", Mult = "x7.36"},
-    {Name = "Skeleton Horse", Tag = "Eternal", Rate = "$83.5B/s", Mult = "x3.06"}
-}
-
-for _, card in ipairs(ChilliCards) do
-    FinderTab:CreateButton({
-        Name = string.format("⚡ %s [%s] - %s (%s) [Join]", card.Name, card.Tag, card.Rate, card.Mult),
-        Callback = function()
-            HopServer()
-        end
-    })
-end
-
--- ==============================================================================
--- SEKME 3: 🎃 DÖNEMSEL ETKİNLİK OTOMASYONU (SEASONAL EVENTS)
--- ==============================================================================
-local EventTab = Window:CreateTab("Etkinlikler", 4483362458)
-EventTab:CreateSection("Halloween & The Hollow")
-
-EventTab:CreateToggle({
-    Name = "Auto Halloween Event Farm",
-    CurrentValue = false,
-    Callback = function(val)
-        getgenv().AutoHalloween = val
-        if val then
-            task.spawn(function()
-                while getgenv().AutoHalloween do
-                    local folder = workspace:FindFirstChild("HalloweenEvent") or workspace:FindFirstChild("EventCoins")
-                    if folder then
-                        for _, coin in ipairs(folder:GetChildren()) do
-                            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                            if root and coin:IsA("BasePart") then
-                                root.CFrame = coin.CFrame
-                                task.wait(0.06)
-                            end
-                        end
-                    end
-                    task.wait(1)
-                end
-            end)
-        end
-    end
-})
-
-EventTab:CreateToggle({
-    Name = "The Hollow Auto-Race (Yarışı Bitir)",
-    CurrentValue = false,
-    Callback = function(val)
-        getgenv().AutoRace = val
-        if val then
-            task.spawn(function()
-                while getgenv().AutoRace do
-                    local checkpoints = workspace:FindFirstChild("RaceCheckpoints") or workspace:FindFirstChild("Checkpoints")
-                    if checkpoints then
-                        local list = checkpoints:GetChildren()
-                        for i = 1, #list do
-                            if not getgenv().AutoRace then break end
-                            local cp = checkpoints:FindFirstChild(tostring(i)) or list[i]
-                            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                            if root and cp then
-                                local target = cp:IsA("BasePart") and cp or cp:FindFirstChildWhichIsA("BasePart")
-                                if target then
-                                    root.CFrame = target.CFrame
-                                    task.wait(0.12)
-                                end
-                            end
-                        end
-                    end
-                    task.wait(1.5)
-                end
-            end)
-        end
-    end
-})
-
-EventTab:CreateToggle({
-    Name = "Dr. Scramble Lab Auto-Quest",
-    CurrentValue = false,
-    Callback = function(val)
-        getgenv().AutoLab = val
-        if val then
-            Rayfield:Notify({Title = "Laboratuvar", Content = "Drone ve görev tetikleyicileri devrede.", Duration = 3})
-        end
-    end
-})
-
--- ==============================================================================
--- SEKME 4: 🛠️ YÖNETİCİ İSTİSMAR ARAÇLARI (ADMIN ABUSE TOOLS)
--- ==============================================================================
-local AdminTab = Window:CreateTab("Admin Araçları", 4483362458)
-AdminTab:CreateSection("Karakter Fiziği ve Hız")
-
-AdminTab:CreateSlider({
-    Name = "WalkSpeed (Yürüme Hızı)",
-    Range = {16, 250},
-    Increment = 2,
-    Suffix = " spd",
-    CurrentValue = 16,
-    Callback = function(v)
-        getgenv().WalkSpeedValue = v
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildWhichIsA("Humanoid") then
-            LocalPlayer.Character:FindFirstChildWhichIsA("Humanoid").WalkSpeed = v
-        end
-    end
-})
-
-AdminTab:CreateSlider({
-    Name = "JumpPower (Zıplama Gücü)",
-    Range = {50, 300},
-    Increment = 5,
-    Suffix = " pwr",
-    CurrentValue = 50,
-    Callback = function(v)
-        getgenv().JumpPowerValue = v
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChildWhichIsA("Humanoid") then
-            local hum = char:FindFirstChildWhichIsA("Humanoid")
-            hum.UseJumpPower = true
-            hum.JumpPower = v
-        end
-    end
-})
-
-AdminTab:CreateToggle({
-    Name = "Infinite Multi-Jump (Havada Zıplama)",
-    CurrentValue = false,
-    Callback = function(v)
-        getgenv().InfJump = v
-    end
-})
-
-UserInputService.JumpRequest:Connect(function()
-    if getgenv().InfJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildWhichIsA("Humanoid") then
-        LocalPlayer.Character:FindFirstChildWhichIsA("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
-    end
-end)
-
-AdminTab:CreateToggle({
-    Name = "Anti-Trap / Anti-Ragdoll (Düşmeyi Önle)",
-    CurrentValue = false,
-    Callback = function(v)
-        getgenv().AntiRagdoll = v
-    end
-})
-
-RunService.Stepped:Connect(function()
-    local char = LocalPlayer.Character
-    if char then
-        local hum = char:FindFirstChildWhichIsA("Humanoid")
-        if hum then
-            if getgenv().WalkSpeedValue > 16 and hum.WalkSpeed ~= getgenv().WalkSpeedValue then
-                hum.WalkSpeed = getgenv().WalkSpeedValue
-            end
-            if getgenv().JumpPowerValue > 50 and hum.JumpPower ~= getgenv().JumpPowerValue then
-                hum.UseJumpPower = true
-                hum.JumpPower = getgenv().JumpPowerValue
-            end
-            if getgenv().AntiRagdoll then
-                local s = hum:GetState()
-                if s == Enum.HumanoidStateType.Ragdoll or s == Enum.HumanoidStateType.FallingDown then
-                    hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-                end
+                break
             end
         end
     end
 end)
-
--- ==============================================================================
--- SEKME 5: 💻 SİSTEM VE ARAYÜZ OPTİMİZASYONLARI (UTILITY)
--- ==============================================================================
-local UtilTab = Window:CreateTab("Sistem & Optimizasyon", 4483362458)
-UtilTab:CreateSection("Performans ve Arka Plan")
-
-UtilTab:CreateToggle({
-    Name = "Anti-AFK (20 Dk Düşme Koruması)",
-    CurrentValue = true,
-    Callback = function(val)
-        getgenv().AntiAFK = val
-    end
-})
-
-LocalPlayer.Idled:Connect(function()
-    if getgenv().AntiAFK then
-        VirtualUser:CaptureController()
-        VirtualUser:ClickButton2(Vector2.new())
-    end
-end)
-
-UtilTab:CreateToggle({
-    Name = "3D Render Disable (GPU Tasarruf Modu)",
-    CurrentValue = false,
-    Callback = function(val)
-        getgenv().Render3DDisabled = val
-        pcall(function()
-            RunService:Set3dRenderingEnabled(not val)
-        end)
-        Rayfield:Notify({Title = "GPU Modu", Content = val and "3D Grafikler kapatıldı (Isınma engellendi)." or "3D Grafikler açıldı.", Duration = 3})
-    end
-})
-
-Rayfield:Notify({
-    Title = "Nacho Hub Pro",
-    Content = "Tüm Chilli & Venyx modülleri başarıyla yüklendi!",
-    Duration = 4,
-    Image = 4483362458
-})
